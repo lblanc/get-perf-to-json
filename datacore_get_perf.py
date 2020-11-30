@@ -434,7 +434,7 @@ def put_in_json_line(datas):
     data = "}\n{".join(result)
 
     #print("{"+data+"}")
-    f = open("datacore_perf_"+ time.strftime("%Y%m%d-%H%M%S") +".txt", "w")
+    f = open("datacore_perf_"+ time.strftime("%Y%m%d-%H%M%S") +".json", "w")
     f.write("{"+data+"}")
     f.close()
     
