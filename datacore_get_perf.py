@@ -34,13 +34,17 @@ try:
     from concurrent.futures import ProcessPoolExecutor
 except:
     msg_error_import("concurrent")
+try:
+    import time
+except:
+    msg_error_import("time")
 
 
 
 # Read config file
 config = configparser.ConfigParser()
 try:
-    config.read('/etc/datacore/datacore_get_perf.ini')
+    config.read('./datacore_get_perf.ini')
 except:
     print("Config file (datacore_get_perf.ini) not found")
     sys.exit(1)
@@ -59,11 +63,6 @@ headers = {'ServerHost': config['SERVERS']['datacore_server'],
            'Authorization': 'Basic {} {}'.format(config['CREDENTIALS']['user'],
                                                  config['CREDENTIALS']['passwd'])}
 
-
-
-
-url_influxdb ='http://{}:{}/write?db=DataCoreRestDB'.format(config['SERVERS']['influxdb_server'],
-                                                       config['SERVERS']['influxdb_port'])
 
 
 
@@ -187,288 +186,258 @@ def dcs_caption_from_id(dcs_id,dcs_json_data):
 
 
 
-def put_in_influxdb(datas):
+def put_in_json_line(datas):
 
     result = []
 
     for data in datas:
         if "servers" in data["dcs_resource"]:
-            line = "{},instance={},objectname={},host={}{} {} {}"
-            table = "DataCore_Servers"
-            objectname = "DataCore\ Servers"
-            instance = str(data["ExtendedCaption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
-            host = str(data["Caption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
+            line = '"instance":"{}","objecttype":"{}","host":"{}"{},{},{}'
+            objecttype = "DataCore Servers"
+            instance = str(data["ExtendedCaption"])
+            host = str(data["Caption"])
             # Add specific info
-            add_info = ",id=" + str(data["Id"])
-            add_info += ",OsVersion=" + str(data["OsVersion"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
-            add_info += ",ProductBuild=" + str(data["ProductBuild"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
-            add_info += ",ProductVersion=" + str(data["ProductVersion"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
-            add_info += ",ProductName=" + str(data["ProductName"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
-            add_info += ",ProductType=" + str(data["ProductType"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
-            add_info += ",Caption=" + str(data["Caption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
+            add_info = ',"id":"{}"'.format(str(data["Id"]))
+            add_info += ',"OsVersion":"{}"'.format(str(data["OsVersion"]))
+            add_info += ',"ProductBuild":"{}"'.format(str(data["ProductBuild"]))
+            add_info += ',"ProductVersion":"{}"'.format(str(data["ProductVersion"]))
+            add_info += ',"ProductName":"{}"'.format(str(data["ProductName"]))
+            add_info += ',"ProductType":"{}"'.format(str(data["ProductType"]))
+            add_info += ',"Caption":"{}"'.format(str(data["Caption"]))
             for k,v in data["Performances"].items():
                 if "CollectionTime" in k:
                     continue
                 result.append(line.format(
-                    table,
                     instance,
-                    objectname,
+                    objecttype,
                     host,
                     add_info,
-                    "=".join([str(k), str(v)]),
-                    int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                    ":".join(['"'+str(k)+'"', '"'+str(v)+'"']),
+                    '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
                 ))
             result.append(line.format(
-                table,
                 instance,
-                objectname,
+                objecttype,
                 host,
                 add_info,
-                "=".join(["State", str(data["State"])]),
-                int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                ":".join(['"State"', '"'+str(data["State"])+'"']),
+                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
             ))
             result.append(line.format(
-                table,
                 instance,
-                objectname,
+                objecttype,
                 host,
                 add_info,
-                "=".join(["CacheState", str(data["CacheState"])]),
-                int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                ":".join(['"CacheState"', '"'+str(data["CacheState"])+'"']),
+                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
             ))
             result.append(line.format(
-                table,
                 instance,
-                objectname,
+                objecttype,
                 host,
                 add_info,
-                "=".join(["PowerState", str(data["PowerState"])]),
-                int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                ":".join(['"PowerState"', '"'+str(data["PowerState"])+'"']),
+                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
             ))
         elif "pools" in data["dcs_resource"]:
-            line = "{},instance={},objectname={},host={}{} {} {}"
-            table = "DataCore_Disk_pools"
-            objectname = "DataCore\ Disk\ pools"
-            instance = str(data["ExtendedCaption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
-            host = str(dcs_caption_from_id(data["ServerId"],dcs_servers))
-            host = host.replace(" ", "\\ ")
+            line = '"instance":"{}","objecttype":"{}","host":{}{},{},{}'
+            objecttype = "DataCore Disk pools"
+            instance = str(data["ExtendedCaption"])
+            host = '"'+str(dcs_caption_from_id(data["ServerId"],dcs_servers))+'"'
             # Add specific info
-            add_info = ",id=" + str(data["Id"])
-            add_info += ",InSharedMode=" + str(data["InSharedMode"])
-            add_info += ",AutoTieringEnabled=" + str(data["AutoTieringEnabled"])
-            add_info += ",Caption=" + str(data["Caption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
+            add_info = ',"id":"{}"'.format(str(data["Id"]))
+            add_info += ',"InSharedMode":"{}"'.format(str(data["InSharedMode"]))
+            add_info += ',"AutoTieringEnabled":"{}"'.format(str(data["AutoTieringEnabled"]))
+            add_info += ',"Caption":"{}"'.format(str(data["Caption"]))
             for k,v in data["Performances"].items():
                 if "CollectionTime" in k:
                     continue
                 result.append(line.format(
-                    table,
                     instance,
-                    objectname,
+                    objecttype,
                     host,
                     add_info,
-                    "=".join([str(k), str(v)]),
-                    int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                    ":".join(['"'+str(k)+'"', '"'+str(v)+'"']),
+                    '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
                 ))
             result.append(line.format(
-                table,
                 instance,
-                objectname,
+                objecttype,
                 host,
                 add_info,
-                "=".join(["PoolStatus", str(data["PoolStatus"])]),
-                int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                ":".join(['"PoolStatus"', '"'+str(data["PoolStatus"])+'"']),
+                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
             ))
             result.append(line.format(
-                table,
                 instance,
-                objectname,
+                objecttype,
                 host,
                 add_info,
-                "=".join(["TierReservedPct", str(data["TierReservedPct"])]),
-                int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                ":".join(['"TierReservedPct"', '"'+str(data["TierReservedPct"])+'"']),
+                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
             ))
             result.append(line.format(
-                table,
                 instance,
-                objectname,
+                objecttype,
                 host,
                 add_info,
-                "=".join(["ChunkSize", str(data["ChunkSize"]["Value"])]),
-                int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                ":".join(['"ChunkSize"', '"'+str(data["ChunkSize"]["Value"])+'"']),
+                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
             ))
             result.append(line.format(
-                table,
                 instance,
-                objectname,
+                objecttype,
                 host,
                 add_info,
-                "=".join(["MaxTierNumber", str(data["MaxTierNumber"])]),
-                int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                ":".join(['"MaxTierNumber"', '"'+str(data["MaxTierNumber"])+'"']),
+                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
             ))
         elif "virtualdisks" in data["dcs_resource"]:
             if data["StorageProfileId"] != None:
-                line = "{},instance={},objectname={},host={}{} {} {}"
-                table = "DataCore_Virtual_Disks"
-                objectname = "DataCore\ Virtual\ disks"
-                instance = str(data["ExtendedCaption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
-                host = 'NA'
+                line = '"instance":"{}","objecttype":"{}"{},{},{}'
+                objecttype = "DataCore Virtual disks"
+                instance = str(data["ExtendedCaption"])
                 # Add specific info
-                add_info = ",id=" + str(data["Id"])
-                add_info += ",ScsiDeviceIdString=" + str(data["ScsiDeviceIdString"])
-                add_info += ",Type=" + str(data["Type"])
+                add_info = ',"id":"{}"'.format(str(data["Id"]))
+                add_info += ',"ScsiDeviceIdString":"{}"'.format(str(data["ScsiDeviceIdString"]))
+                add_info += ',"Type":"{}"'.format(str(data["Type"])) 
                 if data["FirstHostId"] != None:
-                    add_info += ",FirstHost=" + str(dcs_caption_from_id(data["FirstHostId"],dcs_servers))
+                    add_info += ',"FirstHost":"{}"'.format(str(dcs_caption_from_id(data["FirstHostId"],dcs_servers)))
                 if data["SecondHostId"] != None:
-                    add_info += ",SecondHost=" + str(dcs_caption_from_id(data["SecondHostId"],dcs_servers))
-                add_info += ",Caption=" + str(data["Caption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
+                    add_info += ',"SecondHost":"{}"'.format(str(dcs_caption_from_id(data["SecondHostId"],dcs_servers)))
+                add_info += ',"Caption":"{}"'.format(str(data["Caption"]))
                 for k,v in data["Performances"].items():
                     if "CollectionTime" in k:
                         continue
                     result.append(line.format(
-                        table,
                         instance,
-                        objectname,
-                        host,
+                        objecttype,
                         add_info,
-                        "=".join([str(k), str(v)]),
-                        int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                        ":".join(['"'+str(k)+'"', '"'+str(v)+'"']),
+                        '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
                     ))
                 result.append(line.format(
-                        table,
                         instance,
-                        objectname,
-                        host,
+                        objecttype,
                         add_info,
-                        "=".join(["DiskStatus", str(data["DiskStatus"])]),
-                        int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                        ":".join(['"DiskStatus"', '"'+str(data["DiskStatus"])+'"']),
+                        '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
                     ))
                 result.append(line.format(
-                        table,
                         instance,
-                        objectname,
-                        host,
+                        objecttype,
                         add_info,
-                        "=".join(["Size", str(data["Size"]["Value"])]),
-                        int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                        ":".join(['"Size"', '"'+str(data["Size"]["Value"])+'"']),
+                        '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
                     ))
         elif "physicaldisks" in data["dcs_resource"]:
-            line = "{},instance={},objectname={},host={}{} {} {}"
-            table = "DataCore_Physical_disk"
-            objectname = "DataCore\ Physical\ disk"
-            instance = str(data["ExtendedCaption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
-            host = str(dcs_caption_from_id(data["HostId"],dcs_servers_hosts))
-            host = host.replace(" ", "\\ ")
+            line = '"instance":"{}","objecttype":"{}","host":{}{},{},{}'
+            objecttype = "DataCore Physical disk"
+            instance = str(data["ExtendedCaption"])
+            host = '"'+str(dcs_caption_from_id(data["HostId"],dcs_servers))+'"'
             # Add specific info
-            add_info = ",id=" + data["Id"]
+            add_info = ',"id":"{}"'.format(str(data["Id"]))
             if data["InquiryData"]["Serial"] != None:
-                add_info += ",Serial=" + str(data["InquiryData"]["Serial"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
+                add_info += ',"Serial":"{}"'.format(str(data["InquiryData"]["Serial"]))
             else:
-                add_info += ",Serial=UNKNOWN"
-            add_info += ",Type=" + str(data["Type"])
-            add_info += ",Caption=" + str(data["Caption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
+                add_info += ',"Serial":"UNKNOWN"'
+            add_info += ',"Type":"{}"'.format(data["Type"])
+            add_info += ',"Caption":"{}"'.format(data["Caption"])
             for k,v in data["Performances"].items():
                 if "CollectionTime" in k:
                     continue
                 result.append(line.format(
-                    table,
                     instance,
-                    objectname,
+                    objecttype,
                     host,
                     add_info,
-                    "=".join([str(k), str(v)]),
-                    int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                    ":".join(['"'+str(k)+'"', '"'+str(v)+'"']),
+                    '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
                 ))
             result.append(line.format(
-                    table,
                     instance,
-                    objectname,
+                    objecttype,
                     host,
                     add_info,
-                    "=".join(["DiskStatus", str(data["DiskStatus"])]),
-                    int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                    ":".join(['"DiskStatus"', '"'+str(data["DiskStatus"])+'"']),
+                    '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
                 ))
         elif "ports" in data["dcs_resource"]:
-            line = "{},instance={},objectname={},host={}{} {} {}"
-            table = "DataCore_SCSI_ports"
-            objectname = "DataCore\ SCSI\ ports"
-            instance = str(data["ExtendedCaption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
+            line = '"instance":"{}","objecttype":"{}","host":{}{},{},{}'
+            objecttype = "DataCore SCSI ports"
+            instance = str(data["ExtendedCaption"])
             if data["HostId"] != None:
-                host = str(dcs_caption_from_id(data["HostId"],dcs_servers_hosts))
-                host = host.replace(" ", "\\ ")
+                host = '"'+str(dcs_caption_from_id(data["HostId"],dcs_servers))+'"'
             else:
-                host = 'NA'
+                host = "'NA'"
             # Add specific info
-            add_info = ",id=" + str(data["Id"])
+            add_info = ',"id":"{}"'.format(str(data["Id"]))
             try:
                 if data["__type"] != None:
-                    add_info += ",__type=" + str(data["__type"])
-                    add_info += ",Role=" + str(data["ServerPortProperties"]["Role"])
+                    add_info += ',"__type":"{}"'.format(str(data["__type"]))
+                    add_info += ',"Role":"{}"'.format(str(data["ServerPortProperties"]["Role"]))
             except:
                 logging.info("No __type")
                 
-            add_info += ",PortType=" + str(data["PortType"])
+            add_info += ',"PortType":"{}"'.format(str(data["PortType"]))
             
             try:
-                add_info += ",PortRole=" + str(data["ServerPortProperties"]["Role"])
+                add_info += ',"PortRole":"{}"'.format(str(data["ServerPortProperties"]["Role"]))
             except:
-                add_info += ",PortRole=" + "N/A"
+                add_info += ',"PortRole":"N/A"'
 
-            add_info += ",Caption=" + str(data["Caption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
+            add_info = ',"Caption":"{}"'.format(str(data["Caption"]))
             for k,v in data["Performances"].items():
                 if "CollectionTime" in k:
                     continue
                 result.append(line.format(
-                    table,
                     instance,
-                    objectname,
+                    objecttype,
                     host,
                     add_info,
-                    "=".join([str(k), str(v)]),
-                    int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                    ":".join(['"'+str(k)+'"', '"'+str(v)+'"']),
+                    '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
                 ))
         elif "hosts" in data["dcs_resource"]:
-            line = "{},instance={},objectname={},host={}{} {} {}"
-            table = "DataCore_Hosts"
-            objectname = "DataCore\ Hosts"
-            instance = str(data["ExtendedCaption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
-            host = str(data["Caption"].encode("ascii","ignore").strip()).replace(" ", "\\ ").replace(",", "\\ ")
+            line = '"instance":"{}","objectname":"{}","host":"{}"{},{},{}'
+            objecttype = "DataCore Hosts"
+            instance = str(data["ExtendedCaption"])
+            host = str(data["Caption"])
             # Add specific info
-            add_info = ",id=" + str(data["Id"])
-            add_info += ",MpioCapable=" + str(data["MpioCapable"])
-            add_info += ",AluaSupport=" + str(data["AluaSupport"])
+            add_info = ',"id":"{}"'.format(str(data["Id"]))
+            add_info += ',"MpioCapable":"{}"'.format(str(data["MpioCapable"]))
+            add_info += ',"AluaSupport":"{}"'.format(str(data["AluaSupport"]))
             for k,v in data["Performances"].items():
                 if "CollectionTime" in k:
                     continue
                 result.append(line.format(
-                    table,
                     instance,
-                    objectname,
+                    objecttype,
                     host,
                     add_info,
-                    "=".join([str(k), str(v)]),
-                    int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                    ":".join(['"'+str(k)+'"', '"'+str(v)+'"']),
+                    '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
                 ))
             result.append(line.format(
-                table,
                 instance,
-                objectname,
+                objecttype,
                 host,
                 add_info,
-                "=".join(["State", str(data["State"])]),
-                int(data["Performances"]["CollectionTime"][6:-2])*1000000
+                ":".join(['"State"', '"'+str(data["State"])+'"']),
+                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
              ))
         else:
             logging.error("This resource ({}) is not yet implemented".format(resource))
     
-    # Post in influxdb
-    logging.info("Post data in influxdb")         
-    data = "\n".join(result)
-    req = requests.post(url_influxdb, data.encode('utf-8'))
-    if req.status_code >= 200 and req.status_code < 300:
-        logging.info("Done!")
-    else:
-        logging.error("A problem occurs... Response code was {}".format(req.status_code))
-        logging.error(req.text)
+    # Create json
+    logging.info("create json file")       
+    data = "}\n{".join(result)
+
+    #print("{"+data+"}")
+    f = open("datacore_perf_"+ time.strftime("%Y%m%d-%H%M%S") +".txt", "w")
+    f.write("{"+data+"}")
+    f.close()
+    
 
 
 
@@ -488,5 +457,5 @@ if __name__ == "__main__":
     
     dcs_perfs = dcs_get_perf(dcs_objects)
 
-    put_in_influxdb(dcs_perfs)
+    put_in_json_line(dcs_perfs)
   
