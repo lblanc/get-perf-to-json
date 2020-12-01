@@ -130,7 +130,7 @@ def dcs_get_object(dcs_object):
                     item["dcs_resource"] = dcs_object
                     result.append(item)
                 else:
-                    logging.warning("Exception: Partner server: " +item["Caption"])
+                    logging.info("Exception: Partner server: " +item["Caption"])
             return result
         elif dcs_object == "ports":      
             for item in tmp:
@@ -424,6 +424,84 @@ def put_in_json_line(datas):
                 host,
                 add_info,
                 ":".join(['"State"', '"'+str(data["State"])+'"']),
+                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
+             ))
+        elif "servergroups" in data["dcs_resource"]:
+            if data["OurGroup"] != True:
+                continue
+            line = '"instance":"{}","objectname":"{}",{},{},{}'
+            objecttype = "DataCore Server Groups"
+            instance = str(data["Alias"])
+            add_info = ',"id":"{}"'.format(str(data["Id"]))
+            for k,v in data["Performances"].items():
+                if "CollectionTime" in k:
+                    continue
+                result.append(line.format(
+                    instance,
+                    objecttype,
+                    add_info,
+                    ":".join(['"'+str(k)+'"', '"'+str(v)+'"']),
+                    '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
+                ))
+            for k,v in data["LicenseSettings"].items():
+                if str(k) == "StorageCapacity" or str(k) == "LicensedBulkStorage":
+                    result.append(line.format(
+                        instance,
+                        objecttype,
+                        add_info,
+                        ":".join(['"'+str(k)+'"', '"'+str(v["Value"])+'"']),
+                        '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
+                    ))
+                else:
+                    result.append(line.format(
+                        instance,
+                        objecttype,
+                        add_info,
+                        ":".join(['"'+str(k)+'"', '"'+str(v)+'"']),
+                        '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
+                    ))
+
+            # ExistingProductKeys
+            for productkey in data["ExistingProductKeys"]:
+                lastfive = ',"LastFive":"{}"'.format(str(productkey["LastFive"]))
+                for k,v in productkey.items():
+                    if str(k) == "ActualCapacity" or str(k) == "CapacityConsumed":
+                        result.append(line.format(
+                            instance,
+                            objecttype,
+                            add_info + lastfive,
+                            ":".join(['"'+str(k)+'"', '"'+str(v["Value"])+'"']),
+                            '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
+                        ))
+                    else:
+                        result.append(line.format(
+                            instance,
+                            objecttype,
+                            add_info + lastfive,
+                            ":".join(['"'+str(k)+'"', '"'+str(v)+'"']),
+                            '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
+                        ))
+
+
+            result.append(line.format(
+                instance,
+                objecttype,
+                add_info,
+                ":".join(['"State"', '"'+str(data["State"])+'"']),
+                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
+             ))
+            result.append(line.format(
+                instance,
+                objecttype,
+                add_info,
+                ":".join(['"StorageUsed"', '"'+str(data["StorageUsed"]["Value"])+'"']),
+                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
+             ))
+            result.append(line.format(
+                instance,
+                objecttype,
+                add_info,
+                ":".join(['"NextExpirationDate"', '"'+str(data["NextExpirationDate"])+'"']),
                 '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
              ))
         else:
