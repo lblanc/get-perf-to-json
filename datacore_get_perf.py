@@ -497,13 +497,16 @@ def put_in_json_line(datas):
                 ":".join(['"StorageUsed"', '"'+str(data["StorageUsed"]["Value"])+'"']),
                 '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
              ))
-            result.append(line.format(
-                instance,
-                objecttype,
-                add_info,
-                ":".join(['"NextExpirationDate"', '"'+str(data["NextExpirationDate"])+'"']),
-                '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
-             ))
+            
+            if  "NextExpirationDate" in data:
+                result.append(line.format(
+                    instance,
+                    objecttype,
+                    add_info,
+                    ":".join(['"NextExpirationDate"', '"'+str(data["NextExpirationDate"])+'"']),
+                    '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
+                ))
+            
         else:
             logging.error("This resource ({}) is not yet implemented".format(resource))
     
