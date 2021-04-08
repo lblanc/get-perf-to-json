@@ -473,6 +473,14 @@ def put_in_json_line(datas):
                             ":".join(['"'+str(k)+'"', '"'+str(v["Value"])+'"']),
                             '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
                         ))
+                    if str(k) == "Capacity" or str(k) == "Capacity":
+                        result.append(line.format(
+                            instance,
+                            objecttype,
+                            add_info + lastfive,
+                            ":".join(['"'+str(k)+'"', '"'+str(v["Value"])+'"']),
+                            '"CollectionTime":"'+data["Performances"]["CollectionTime"]+'"'
+                        ))
                     else:
                         result.append(line.format(
                             instance,
